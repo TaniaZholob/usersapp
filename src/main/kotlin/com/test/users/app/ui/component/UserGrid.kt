@@ -9,7 +9,9 @@ import com.vaadin.flow.component.notification.Notification
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout
 import com.vaadin.flow.component.orderedlayout.VerticalLayout
 import com.vaadin.flow.component.textfield.TextField
+import com.vaadin.flow.data.provider.CallbackDataProvider
 import com.vaadin.flow.data.value.ValueChangeMode
+import org.springframework.data.domain.PageRequest
 import org.springframework.security.core.context.SecurityContextHolder
 import java.time.format.DateTimeFormatter
 
@@ -21,8 +23,7 @@ class UserGrid(
     private val searchField = TextField()
     private val admin = isAdmin()
     private val addButton = Button("Add User")
-    private val formatter =
-        DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
+    private val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
 
     init {
 
@@ -34,7 +35,7 @@ class UserGrid(
             configureAdminActions()
         }
 
-        refreshGrid()
+        configureDataProvider()
 
         add(
             HorizontalLayout(searchField, addButton),
@@ -49,7 +50,7 @@ class UserGrid(
             isClearButtonVisible = true
             valueChangeMode = ValueChangeMode.LAZY
 
-            addValueChangeListener { refreshGrid() }
+            addValueChangeListener { grid.dataProvider.refreshAll() }
         }
     }
 
@@ -93,19 +94,36 @@ class UserGrid(
         }
     }
 
-    private fun refreshGrid() {
+    private fun configureDataProvider() {
 
-        val search = searchField.value ?: ""
+        val provider = CallbackDataProvider<UserDto, Void>(
+            { query ->
 
-        grid.setItems(userService.searchUsers(search))
+                val search = searchField.value ?: ""
+
+                val page = PageRequest.of(
+                    query.offset / query.pageSize,
+                    query.pageSize
+                )
+
+                userService.searchUsers(search, page).stream()
+            },
+            { _ ->
+
+                val search = searchField.value ?: ""
+
+                userService.searchUsers(
+                    search,
+                    PageRequest.of(0, 1)
+                ).totalElements.toInt()
+            }
+        )
+        grid.setDataProvider(provider)
     }
 
     private fun openCreateDialog() {
-
         UserFormDialog(
-
             onSave = { form ->
-
                 userService.createUser(
                     name = form.name,
                     email = form.email,
@@ -113,19 +131,15 @@ class UserGrid(
                     role = form.role
                 )
 
-                refreshGrid()
+                grid.dataProvider.refreshAll()
                 Notification.show("User created")
             }
-
         ).open()
     }
 
     private fun openEditDialog(user: UserDto) {
-
         UserFormDialog(
-
             user = user,
-
             onSave = { form ->
                 userService.updateUser(
                     id = user.id!!,
@@ -134,7 +148,7 @@ class UserGrid(
                     role = form.role
                 )
 
-                refreshGrid()
+                grid.dataProvider.refreshAll()
                 Notification.show("User updated")
             }
 
@@ -151,7 +165,7 @@ class UserGrid(
 
             {
                 userService.deleteUser(user.id!!)
-                refreshGrid()
+                grid.dataProvider.refreshAll()
                 Notification.show("User deleted")
             },
 
@@ -165,8 +179,6 @@ class UserGrid(
         return SecurityContextHolder.getContext()
             .authentication
             .authorities
-            .any {
-                it.authority == "ROLE_ADMIN"
-            }
+            .any { it.authority == "ROLE_ADMIN" }
     }
 }

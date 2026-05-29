@@ -8,6 +8,8 @@ import com.test.users.app.exception.UserAlreadyExistsException
 import com.test.users.app.exception.UserNotFoundException
 import com.test.users.app.repository.RoleRepository
 import com.test.users.app.repository.UserRepository
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -20,19 +22,26 @@ class UserService(
     private val passwordEncoder: PasswordEncoder
 ) {
 
-    fun getAllUsers(): List<UserDto> {
-        return userRepository.findAll()
-            .map(::mapToDto)
-    }
+    fun searchUsers(
+        search: String,
+        pageable: Pageable
+    ): Page<UserDto> {
 
-    fun searchUsers(search: String): List<UserDto> {
+        return if (search.isBlank()) {
 
-        if (search.isBlank()) {
-            return getAllUsers()
+            userRepository.findAll(pageable)
+                .map(::mapToDto)
+
+        } else {
+
+            userRepository
+                .findByNameContainingIgnoreCaseOrEmailContainingIgnoreCase(
+                    search,
+                    search,
+                    pageable
+                )
+                .map(::mapToDto)
         }
-        return userRepository
-            .findByNameContainingIgnoreCaseOrEmailContainingIgnoreCase(search, search)
-            .map(::mapToDto)
     }
 
     @Transactional
@@ -75,7 +84,7 @@ class UserService(
 
         val user = userRepository.findById(id)
             .orElseThrow {
-                throw UserNotFoundException(id)
+                UserNotFoundException(id)
             }
 
         val existingUser = userRepository.findByEmail(email)
@@ -99,7 +108,7 @@ class UserService(
 
         val user = userRepository.findById(id)
             .orElseThrow {
-                throw UserNotFoundException(id)
+                UserNotFoundException(id)
             }
 
         userRepository.delete(user)
