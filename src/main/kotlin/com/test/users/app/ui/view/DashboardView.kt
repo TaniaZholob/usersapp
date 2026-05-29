@@ -6,13 +6,15 @@ import com.test.users.app.service.UserService
 import com.vaadin.flow.component.orderedlayout.VerticalLayout
 import com.vaadin.flow.router.PageTitle
 import com.vaadin.flow.router.Route
+import com.vaadin.flow.spring.security.AuthenticationContext
 import jakarta.annotation.security.RolesAllowed
 
 @Route("")
 @PageTitle("Dashboard")
 @RolesAllowed("USER", "ADMIN")
 class DashboardView(
-private val userService: UserService
+private val userService: UserService,
+private val authenticationContext: AuthenticationContext
 )  : VerticalLayout() {
 
     init {
@@ -23,7 +25,7 @@ private val userService: UserService
         h2("Dashboard")
 
         add(
-            UserGrid(userService)
+            UserGrid(userService, authenticationContext)
         )
     }
 }

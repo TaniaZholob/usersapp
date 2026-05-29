@@ -18,6 +18,10 @@ class SecurityConfig : VaadinWebSecurity() {
                 it.loginPage("/login")
                     .defaultSuccessUrl("/", true)
             }
+            .logout {
+                it.logoutUrl("/logout")
+                    .logoutSuccessUrl("/login")
+            }
 
         super.configure(http)
 

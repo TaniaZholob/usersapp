@@ -32,49 +32,35 @@ class UserFormDialog(
             RoleName.USER.name
         )
 
+        roleField.isRequired = true
+
         if (user != null) {
             nameField.value = user.name
             emailField.value = user.email
             roleField.value = user.role
+        } else {
+            passwordField.isRequired = true
         }
 
-        val formLayout = FormLayout()
-
-        formLayout.add(
+        val formLayout = FormLayout(
             nameField,
             emailField,
-            roleField
+            roleField,
+            passwordField
         )
-
-        if (user == null) {
-            passwordField.isRequired = true
-            formLayout.add(passwordField)
-        }
 
         val saveButton = Button("Save") {
 
-            if (
-                nameField.value.isBlank() ||
+            if (nameField.value.isBlank() ||
                 emailField.value.isBlank() ||
-                roleField.value == null
+                roleField.value.isNullOrBlank()
             ) {
-
-                Notification.show(
-                    "Please fill all required fields"
-                )
-
+                Notification.show("Please fill all required fields")
                 return@Button
             }
 
-            if (
-                user == null &&
-                passwordField.value.isBlank()
-            ) {
-
-                Notification.show(
-                    "Password is required"
-                )
-
+            if (user == null && passwordField.value.isBlank()) {
+                Notification.show("Password is required")
                 return@Button
             }
 
@@ -82,10 +68,7 @@ class UserFormDialog(
                 UserFormData(
                     name = nameField.value.trim(),
                     email = emailField.value.trim(),
-                    password = if (user == null)
-                        passwordField.value
-                    else
-                        null,
+                    password = if (user == null) passwordField.value else null,
                     role = roleField.value
                 )
             )
@@ -93,10 +76,15 @@ class UserFormDialog(
             close()
         }
 
-        val cancelButton = Button("Cancel") { close() }
+        val cancelButton = Button("Cancel") {
+            close()
+        }
 
-        val buttons = HorizontalLayout(saveButton, cancelButton)
-
-        add(VerticalLayout(formLayout, buttons))
+        add(
+            VerticalLayout(
+                formLayout,
+                HorizontalLayout(saveButton, cancelButton)
+            )
+        )
     }
 }

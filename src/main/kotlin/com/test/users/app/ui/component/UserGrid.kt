@@ -11,18 +11,21 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout
 import com.vaadin.flow.component.textfield.TextField
 import com.vaadin.flow.data.provider.CallbackDataProvider
 import com.vaadin.flow.data.value.ValueChangeMode
+import com.vaadin.flow.spring.security.AuthenticationContext
 import org.springframework.data.domain.PageRequest
 import org.springframework.security.core.context.SecurityContextHolder
 import java.time.format.DateTimeFormatter
 
 class UserGrid(
-    private val userService: UserService
+    private val userService: UserService,
+    private val authenticationContext: AuthenticationContext
 ) : VerticalLayout() {
 
     private val grid = Grid(UserDto::class.java, false)
     private val searchField = TextField()
     private val admin = isAdmin()
     private val addButton = Button("Add User")
+    private val logoutButton = Button("Logout")
     private val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
 
     init {
@@ -30,15 +33,17 @@ class UserGrid(
         setSizeFull()
         configureSearch()
         configureGrid()
+        configureDataProvider()
 
         if (admin) {
             configureAdminActions()
         }
 
-        configureDataProvider()
-
+        logoutButton.addClickListener {
+            authenticationContext.logout()
+        }
         add(
-            HorizontalLayout(searchField, addButton),
+            HorizontalLayout(searchField, addButton, logoutButton),
             grid
         )
     }
@@ -156,26 +161,20 @@ class UserGrid(
     }
 
     private fun openDeleteDialog(user: UserDto) {
-
         ConfirmDialog(
-
             "Delete User",
             "Are you sure you want to delete ${user.name}?",
             "Delete",
-
             {
                 userService.deleteUser(user.id!!)
                 grid.dataProvider.refreshAll()
                 Notification.show("User deleted")
             },
-
             "Cancel"
-
         ) {}.open()
     }
 
     private fun isAdmin(): Boolean {
-
         return SecurityContextHolder.getContext()
             .authentication
             .authorities
