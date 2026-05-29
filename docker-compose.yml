@@ -1,0 +1,32 @@
+services:
+  usersdb:
+    image: postgres:16
+    container_name: usersdb
+    environment:
+      POSTGRES_DB: usersdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d usersdb" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  usersapp:
+    build: .
+    container_name: usersapp
+    ports:
+      - "8080:8080"
+    depends_on:
+      - usersdb
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://usersdb:5432/usersdb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+
+volumes:
+  postgres_data:
