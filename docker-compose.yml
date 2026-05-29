@@ -25,9 +25,9 @@ services:
       usersdb:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://usersdb:5432/usersdb
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
+      DB_URL: jdbc:postgresql://usersdb:5432/usersdb
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
 
 volumes:
   postgres_data:
