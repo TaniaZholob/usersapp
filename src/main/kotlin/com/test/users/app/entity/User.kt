@@ -19,7 +19,7 @@ class User(
     @Column(nullable = false) var name: String,
     @Column(nullable = false, unique = true) var email: String,
     @Column(nullable = false) var password: String,
-    @ManyToOne(fetch = FetchType.EAGER) @JoinColumn(name = "role_id", nullable = false) var role: Role,
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "role_id", nullable = false) var role: Role,
     @Column(name = "created_at", nullable = false, updatable = false) var createdAt: LocalDateTime? = null,
     @Column(name = "updated_at", nullable = false) var updatedAt: LocalDateTime? = null
 )
