@@ -23,7 +23,7 @@ class LoginView : VerticalLayout(), BeforeEnterObserver {
         setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER)
 
         login.action = "login"
-
+        login.isForgotPasswordButtonVisible = false
         add(H1("Login"), login)
     }
 

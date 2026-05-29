@@ -43,6 +43,9 @@ class UserGrid(
             HorizontalLayout(searchField, logoutButton)
         }
 
+        toolbar.setWidthFull()
+        toolbar.expand(searchField)
+
         add(toolbar, grid)
     }
 
@@ -66,18 +69,22 @@ class UserGrid(
             addColumn(UserDto::name)
                 .setHeader("Name")
                 .setSortable(true)
+                .setSortProperty("name")
 
             addColumn(UserDto::email)
                 .setHeader("Email")
                 .setSortable(true)
+                .setSortProperty("email")
 
             addColumn { it.createdAt.format(formatter) }
                 .setHeader("Created At")
                 .setSortable(true)
+                .setSortProperty("createdAt")
 
             addColumn { it.updatedAt.format(formatter) }
                 .setHeader("Updated At")
                 .setSortable(true)
+                .setSortProperty("updatedAt")
 
             if (admin) {
                 addComponentColumn { user ->
@@ -86,6 +93,9 @@ class UserGrid(
                         Button("Delete") { openDeleteDialog(user) }
                     )
                 }.setHeader("Actions")
+                    .setAutoWidth(true)
+                    .setFlexGrow(0)
+                    .setTextAlign(com.vaadin.flow.component.grid.ColumnTextAlign.END)
             }
         }
     }
