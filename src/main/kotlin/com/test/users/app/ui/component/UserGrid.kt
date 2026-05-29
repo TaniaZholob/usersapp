@@ -94,7 +94,7 @@ class UserGrid(
 
         val provider = UserDataProvider(
             userService = userService,
-            searchProvider = { searchField.value ?: "" }
+            searchProvider = { searchField.value }
         ).build()
 
         grid.setDataProvider(provider)
@@ -119,22 +119,11 @@ class UserGrid(
         lateinit var dialog: UserFormDialog
         dialog = UserFormDialog(
             onSave = { form ->
-                addButton.isEnabled = false
-                SafeExecutor.run {
-                    try {
-                        userService.createUser(
-                            name = form.name,
-                            email = form.email,
-                            password = form.password ?: "",
-                            role = form.role
-                        )
 
-                        grid.dataProvider.refreshAll()
-                        Notification.show("User created")
-                        dialog.close()
-                    } finally {
-                        addButton.isEnabled = true
-                    }
+                SafeExecutor.run {
+                    userService.createUser(form)
+                    refreshGrid("User created")
+                    dialog.close()
                 }
             }
         )
@@ -146,22 +135,11 @@ class UserGrid(
         dialog = UserFormDialog(
             user = user,
             onSave = { form ->
-                addButton.isEnabled = false
                 SafeExecutor.run {
-                    try {
-                        userService.updateUser(
-                            id = user.id!!,
-                            name = form.name,
-                            email = form.email,
-                            role = form.role
-                        )
+                    userService.updateUser(requireNotNull(user.id), form)
 
-                        grid.dataProvider.refreshAll()
-                        Notification.show("User updated")
-                        dialog.close()
-                    } finally {
-                        addButton.isEnabled = true
-                    }
+                    refreshGrid("User updated")
+                    dialog.close()
                 }
             }
         )
@@ -176,18 +154,19 @@ class UserGrid(
         dialog.setConfirmText("Delete")
         dialog.setCancelText("Cancel")
         dialog.addConfirmListener {
-            addButton.isEnabled = false
+
             SafeExecutor.run {
-                try {
-                    userService.deleteUser(user.id!!)
-                    grid.dataProvider.refreshAll()
-                    Notification.show("User deleted")
-                } finally {
-                    addButton.isEnabled = true
-                }
+                userService.deleteUser(requireNotNull(user.id))
+
+                refreshGrid("User deleted")
             }
         }
         dialog.open()
+    }
+
+    private fun refreshGrid(message: String) {
+        grid.dataProvider.refreshAll()
+        Notification.show(message)
     }
 
     private fun isAdmin(): Boolean {
