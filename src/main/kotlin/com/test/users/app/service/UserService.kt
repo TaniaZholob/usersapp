@@ -1,25 +1,128 @@
 package com.test.users.app.service
 
 import com.test.users.app.dto.UserDto
+import com.test.users.app.entity.RoleName
+import com.test.users.app.entity.User
+import com.test.users.app.repository.RoleRepository
 import com.test.users.app.repository.UserRepository
+import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDateTime
 
 @Service
 class UserService(
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val roleRepository: RoleRepository,
+    private val passwordEncoder: PasswordEncoder
 ) {
 
     fun getAllUsers(): List<UserDto> {
         return userRepository.findAll()
-            .map { user ->
-                UserDto(
-                    id = user.id,
-                    name = user.name,
-                    email = user.email,
-                    role = user.role.name.name,
-                    createdAt = user.createdAt!!,
-                    updatedAt = user.updatedAt!!
-                )
+            .map(::mapToDto)
+    }
+
+    fun searchUsers(search: String): List<UserDto> {
+
+        if (search.isBlank()) {
+            return getAllUsers()
+        }
+        return userRepository
+            .findByNameContainingIgnoreCaseOrEmailContainingIgnoreCase(search, search)
+            .map(::mapToDto)
+    }
+
+    @Transactional
+    fun createUser(
+        name: String,
+        email: String,
+        password: String,
+        role: String
+    ) {
+
+        val existingUser = userRepository.findByEmail(email)
+
+        if (existingUser != null) {
+            throw IllegalArgumentException(
+                "User with this email already exists"
+            )
+        }
+
+        val userRole = roleRepository.findByName(
+            RoleName.valueOf(role.uppercase())
+        ) ?: throw IllegalArgumentException(
+            "Role not found"
+        )
+
+        val now = LocalDateTime.now()
+
+        val user = User(
+            name = name,
+            email = email,
+            password = passwordEncoder.encode(password),
+            role = userRole,
+            createdAt = now,
+            updatedAt = now
+        )
+
+        userRepository.save(user)
+    }
+
+    @Transactional
+    fun updateUser(
+        id: Long,
+        name: String,
+        email: String,
+        role: String
+    ) {
+
+        val user = userRepository.findById(id)
+            .orElseThrow {
+                IllegalArgumentException("User not found")
             }
+
+        val existingUser = userRepository.findByEmail(email)
+
+        if (existingUser != null && existingUser.id != id) {
+            throw IllegalArgumentException(
+                "User with this email already exists"
+            )
+        }
+
+        val userRole = roleRepository.findByName(
+            RoleName.valueOf(role.uppercase())
+        ) ?: throw IllegalArgumentException(
+            "Role not found"
+        )
+
+        user.name = name
+        user.email = email
+        user.role = userRole
+        user.updatedAt = LocalDateTime.now()
+
+        userRepository.save(user)
+    }
+
+    @Transactional
+    fun deleteUser(id: Long) {
+
+        val user = userRepository.findById(id)
+            .orElseThrow {
+                IllegalArgumentException("User not found")
+            }
+
+        userRepository.delete(user)
+    }
+
+    private fun mapToDto(user: User): UserDto {
+
+        return UserDto(
+            id = user.id,
+            name = user.name,
+            email = user.email,
+            role = user.role.name.name,
+            createdAt = user.createdAt ?: LocalDateTime.now(),
+            updatedAt = user.updatedAt ?: LocalDateTime.now()
+        )
     }
 }

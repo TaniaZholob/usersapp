@@ -2,19 +2,61 @@ package com.test.users.app.ui.component
 
 import com.test.users.app.dto.UserDto
 import com.test.users.app.service.UserService
+import com.vaadin.flow.component.button.Button
+import com.vaadin.flow.component.confirmdialog.ConfirmDialog
 import com.vaadin.flow.component.grid.Grid
+import com.vaadin.flow.component.notification.Notification
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout
 import com.vaadin.flow.component.orderedlayout.VerticalLayout
+import com.vaadin.flow.component.textfield.TextField
+import com.vaadin.flow.data.value.ValueChangeMode
+import org.springframework.security.core.context.SecurityContextHolder
+import java.time.format.DateTimeFormatter
 
 class UserGrid(
     private val userService: UserService
 ) : VerticalLayout() {
 
     private val grid = Grid(UserDto::class.java, false)
+    private val searchField = TextField()
+    private val admin = isAdmin()
+    private val addButton = Button("Add User")
+    private val formatter =
+        DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
 
     init {
+
         setSizeFull()
+        configureSearch()
+        configureGrid()
+
+        if (admin) {
+            configureAdminActions()
+        }
+
+        refreshGrid()
+
+        add(
+            HorizontalLayout(searchField, addButton),
+            grid
+        )
+    }
+
+    private fun configureSearch() {
+
+        searchField.apply {
+            placeholder = "Search by name or email"
+            isClearButtonVisible = true
+            valueChangeMode = ValueChangeMode.LAZY
+
+            addValueChangeListener { refreshGrid() }
+        }
+    }
+
+    private fun configureGrid() {
 
         grid.apply {
+
             setSizeFull()
 
             addColumn(UserDto::name)
@@ -25,17 +67,106 @@ class UserGrid(
                 .setHeader("Email")
                 .setSortable(true)
 
-            addColumn { it.createdAt.toString() }
+            addColumn { it.createdAt.format(formatter) }
                 .setHeader("Created At")
                 .setSortable(true)
 
-            addColumn { it.updatedAt.toString() }
+            addColumn { it.updatedAt.format(formatter) }
                 .setHeader("Updated At")
                 .setSortable(true)
 
-            setItems(userService.getAllUsers())
+            if (admin) {
+                addComponentColumn { user ->
+                    HorizontalLayout(
+                        Button("Edit") { openEditDialog(user) },
+                        Button("Delete") { openDeleteDialog(user) }
+                    )
+                }.setHeader("Actions")
+            }
         }
+    }
 
-        add(grid)
+    private fun configureAdminActions() {
+
+        addButton.addClickListener {
+            openCreateDialog()
+        }
+    }
+
+    private fun refreshGrid() {
+
+        val search = searchField.value ?: ""
+
+        grid.setItems(userService.searchUsers(search))
+    }
+
+    private fun openCreateDialog() {
+
+        UserFormDialog(
+
+            onSave = { form ->
+
+                userService.createUser(
+                    name = form.name,
+                    email = form.email,
+                    password = form.password ?: "",
+                    role = form.role
+                )
+
+                refreshGrid()
+                Notification.show("User created")
+            }
+
+        ).open()
+    }
+
+    private fun openEditDialog(user: UserDto) {
+
+        UserFormDialog(
+
+            user = user,
+
+            onSave = { form ->
+                userService.updateUser(
+                    id = user.id!!,
+                    name = form.name,
+                    email = form.email,
+                    role = form.role
+                )
+
+                refreshGrid()
+                Notification.show("User updated")
+            }
+
+        ).open()
+    }
+
+    private fun openDeleteDialog(user: UserDto) {
+
+        ConfirmDialog(
+
+            "Delete User",
+            "Are you sure you want to delete ${user.name}?",
+            "Delete",
+
+            {
+                userService.deleteUser(user.id!!)
+                refreshGrid()
+                Notification.show("User deleted")
+            },
+
+            "Cancel"
+
+        ) {}.open()
+    }
+
+    private fun isAdmin(): Boolean {
+
+        return SecurityContextHolder.getContext()
+            .authentication
+            .authorities
+            .any {
+                it.authority == "ROLE_ADMIN"
+            }
     }
 }
