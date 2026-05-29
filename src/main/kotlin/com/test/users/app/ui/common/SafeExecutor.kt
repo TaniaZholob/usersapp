@@ -4,6 +4,7 @@ import com.test.users.app.exception.RoleNotFoundException
 import com.test.users.app.exception.UserAlreadyExistsException
 import com.test.users.app.exception.UserNotFoundException
 import com.vaadin.flow.component.notification.Notification
+import jakarta.validation.ConstraintViolationException
 import org.slf4j.LoggerFactory
 import org.springframework.dao.DataIntegrityViolationException
 
@@ -42,6 +43,10 @@ object SafeExecutor {
 
     private fun handleException(e: Exception) {
         when (e) {
+
+            is ConstraintViolationException -> {
+                showNotification(e.constraintViolations.firstOrNull()?.message ?: "Validation failed")
+            }
 
             is UserAlreadyExistsException -> {
                 showNotification("A user with this email already exists")

@@ -27,6 +27,7 @@ class UserFormDialog(
     init {
 
         width = "400px"
+
         roleField.setItems(
             RoleName.ADMIN.name,
             RoleName.USER.name
@@ -34,10 +35,17 @@ class UserFormDialog(
 
         roleField.isRequired = true
 
-        if (user != null) {
-            nameField.value = user.name
+        passwordField.minLength = 8
+        passwordField.errorMessage = "Password must be at least 8 characters"
+
+        val isEdit = user != null
+
+        if (isEdit) {
+            nameField.value = user!!.name
             emailField.value = user.email
             roleField.value = user.role
+
+            passwordField.isVisible = false
         } else {
             passwordField.isRequired = true
         }
@@ -59,16 +67,23 @@ class UserFormDialog(
                 return@Button
             }
 
-            if (user == null && passwordField.value.isBlank()) {
-                Notification.show("Password is required")
-                return@Button
+            if (!isEdit) {
+                if (passwordField.value.isBlank()) {
+                    Notification.show("Password is required")
+                    return@Button
+                }
+
+                if (passwordField.value.length < passwordField.minLength) {
+                    Notification.show(passwordField.errorMessage)
+                    return@Button
+                }
             }
 
             onSave(
                 UserFormData(
                     name = nameField.value.trim(),
                     email = emailField.value.trim(),
-                    password = if (user == null) passwordField.value else null,
+                    password = if (!isEdit) passwordField.value else null,
                     role = roleField.value
                 )
             )

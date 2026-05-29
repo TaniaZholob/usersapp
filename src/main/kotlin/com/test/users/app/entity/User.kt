@@ -22,4 +22,16 @@ class User(
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "role_id", nullable = false) var role: Role,
     @Column(name = "created_at", nullable = false, updatable = false) var createdAt: LocalDateTime? = null,
     @Column(name = "updated_at", nullable = false) var updatedAt: LocalDateTime? = null
-)
+) {
+    @PrePersist
+    fun onCreate() {
+        val now = LocalDateTime.now()
+        createdAt = now
+        updatedAt = now
+    }
+
+    @PreUpdate
+    fun onUpdate() {
+        updatedAt = LocalDateTime.now()
+    }
+}
