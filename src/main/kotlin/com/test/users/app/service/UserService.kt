@@ -98,7 +98,6 @@ class UserService(
         user.name = name
         user.email = email
         user.role = userRole
-        user.updatedAt = LocalDateTime.now()
 
         userRepository.save(user)
     }
