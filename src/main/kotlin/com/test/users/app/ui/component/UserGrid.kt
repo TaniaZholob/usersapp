@@ -25,6 +25,7 @@ class UserGrid(
     private val grid = Grid(UserDto::class.java, false)
     private val searchField = TextField()
     private val admin = isAdmin()
+    private val currentUserId = getCurrentUserId()
     private val addButton = Button("Add User")
     private val logoutButton = Button("Logout")
     private val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
@@ -88,9 +89,11 @@ class UserGrid(
 
             if (admin) {
                 addComponentColumn { user ->
+                    val deleteButton = Button("Delete") { openDeleteDialog(user) }
+                    deleteButton.isEnabled = user.id != currentUserId
                     HorizontalLayout(
                         Button("Edit") { openEditDialog(user) },
-                        Button("Delete") { openDeleteDialog(user) }
+                        deleteButton
                     )
                 }.setHeader("Actions")
                     .setAutoWidth(true)
@@ -186,5 +189,15 @@ class UserGrid(
                 }
             }
             .orElse(false)
+    }
+
+    private fun getCurrentUserId(): Long? {
+        val email = authenticationContext.getAuthenticatedUser(UserDetails::class.java)
+            .map { it.username }
+            .orElse(null) ?: return null
+
+        return userService.searchUsers("", org.springframework.data.domain.PageRequest.of(0, 1))
+            .content
+            .find { it.email == email }?.id
     }
 }

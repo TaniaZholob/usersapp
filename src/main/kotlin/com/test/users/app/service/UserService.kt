@@ -12,10 +12,12 @@ import com.test.users.app.repository.UserRepository
 import jakarta.validation.Valid
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.validation.annotation.Validated
+import java.nio.file.AccessDeniedException
 
 @Validated
 @Service
@@ -78,6 +80,21 @@ class UserService(
     fun deleteUser(id: Long) {
         val user = userRepository.findById(id)
             .orElseThrow { UserNotFoundException(id) }
+
+        val auth = SecurityContextHolder.getContext().authentication
+            ?: throw IllegalStateException("No authenticated user")
+
+        if (!auth.isAuthenticated || auth.name == "anonymousUser") {
+            throw IllegalStateException("No authenticated user")
+        }
+
+        val currentUser = userRepository.findByEmail(auth.name)
+            ?: throw UserNotFoundException(auth.name)
+
+        if (currentUser.id == id) {
+            throw AccessDeniedException("Cannot delete your own account")
+        }
+
         userRepository.delete(user)
     }
 
