@@ -1,0 +1,8 @@
+# .dockerignore
+.git
+.gradle
+.idea
+build/
+*.md
+.DS_Store
+HELP.md
