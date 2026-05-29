@@ -3,6 +3,9 @@ package com.test.users.app.service
 import com.test.users.app.dto.UserDto
 import com.test.users.app.entity.RoleName
 import com.test.users.app.entity.User
+import com.test.users.app.exception.RoleNotFoundException
+import com.test.users.app.exception.UserAlreadyExistsException
+import com.test.users.app.exception.UserNotFoundException
 import com.test.users.app.repository.RoleRepository
 import com.test.users.app.repository.UserRepository
 import org.springframework.security.crypto.password.PasswordEncoder
@@ -43,16 +46,10 @@ class UserService(
         val existingUser = userRepository.findByEmail(email)
 
         if (existingUser != null) {
-            throw IllegalArgumentException(
-                "User with this email already exists"
-            )
+            throw UserAlreadyExistsException(email)
         }
-
-        val userRole = roleRepository.findByName(
-            RoleName.valueOf(role.uppercase())
-        ) ?: throw IllegalArgumentException(
-            "Role not found"
-        )
+        val roleValue = RoleName.valueOf(role.uppercase())
+        val userRole = roleRepository.findByName(roleValue) ?: throw RoleNotFoundException(roleValue.name)
 
         val now = LocalDateTime.now()
 
@@ -78,22 +75,16 @@ class UserService(
 
         val user = userRepository.findById(id)
             .orElseThrow {
-                IllegalArgumentException("User not found")
+                throw UserNotFoundException(id)
             }
 
         val existingUser = userRepository.findByEmail(email)
 
         if (existingUser != null && existingUser.id != id) {
-            throw IllegalArgumentException(
-                "User with this email already exists"
-            )
+            throw UserAlreadyExistsException(email)
         }
-
-        val userRole = roleRepository.findByName(
-            RoleName.valueOf(role.uppercase())
-        ) ?: throw IllegalArgumentException(
-            "Role not found"
-        )
+        val roleValue = RoleName.valueOf(role.uppercase())
+        val userRole = roleRepository.findByName(roleValue) ?: throw RoleNotFoundException(roleValue.name)
 
         user.name = name
         user.email = email
@@ -108,7 +99,7 @@ class UserService(
 
         val user = userRepository.findById(id)
             .orElseThrow {
-                IllegalArgumentException("User not found")
+                throw UserNotFoundException(id)
             }
 
         userRepository.delete(user)
