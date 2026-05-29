@@ -72,8 +72,6 @@ class UserFormDialog(
                     role = roleField.value
                 )
             )
-
-            close()
         }
 
         val cancelButton = Button("Cancel") {

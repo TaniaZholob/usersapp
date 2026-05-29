@@ -2,6 +2,9 @@ package com.test.users.app.ui.component
 
 import com.test.users.app.dto.UserDto
 import com.test.users.app.service.UserService
+import com.test.users.app.ui.common.SafeExecutor
+import com.test.users.app.ui.dataprovider.UserDataProvider
+import com.vaadin.flow.component.UI
 import com.vaadin.flow.component.button.Button
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog
 import com.vaadin.flow.component.grid.Grid
@@ -9,11 +12,9 @@ import com.vaadin.flow.component.notification.Notification
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout
 import com.vaadin.flow.component.orderedlayout.VerticalLayout
 import com.vaadin.flow.component.textfield.TextField
-import com.vaadin.flow.data.provider.CallbackDataProvider
 import com.vaadin.flow.data.value.ValueChangeMode
 import com.vaadin.flow.spring.security.AuthenticationContext
-import org.springframework.data.domain.PageRequest
-import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.core.userdetails.UserDetails
 import java.time.format.DateTimeFormatter
 
 class UserGrid(
@@ -34,18 +35,15 @@ class UserGrid(
         configureSearch()
         configureGrid()
         configureDataProvider()
+        configureActions()
 
-        if (admin) {
-            configureAdminActions()
+        val toolbar = if (admin) {
+            HorizontalLayout(searchField, addButton, logoutButton)
+        } else {
+            HorizontalLayout(searchField, logoutButton)
         }
 
-        logoutButton.addClickListener {
-            authenticationContext.logout()
-        }
-        add(
-            HorizontalLayout(searchField, addButton, logoutButton),
-            grid
-        )
+        add(toolbar, grid)
     }
 
     private fun configureSearch() {
@@ -92,92 +90,112 @@ class UserGrid(
         }
     }
 
-    private fun configureAdminActions() {
-
-        addButton.addClickListener {
-            openCreateDialog()
-        }
-    }
-
     private fun configureDataProvider() {
 
-        val provider = CallbackDataProvider<UserDto, Void>(
-            { query ->
+        val provider = UserDataProvider(
+            userService = userService,
+            searchProvider = { searchField.value ?: "" }
+        ).build()
 
-                val search = searchField.value ?: ""
-
-                val page = PageRequest.of(
-                    query.offset / query.pageSize,
-                    query.pageSize
-                )
-
-                userService.searchUsers(search, page).stream()
-            },
-            { _ ->
-
-                val search = searchField.value ?: ""
-
-                userService.searchUsers(
-                    search,
-                    PageRequest.of(0, 1)
-                ).totalElements.toInt()
-            }
-        )
         grid.setDataProvider(provider)
     }
 
-    private fun openCreateDialog() {
-        UserFormDialog(
-            onSave = { form ->
-                userService.createUser(
-                    name = form.name,
-                    email = form.email,
-                    password = form.password ?: "",
-                    role = form.role
-                )
+    private fun configureActions() {
 
-                grid.dataProvider.refreshAll()
-                Notification.show("User created")
+        if (admin) {
+            addButton.addClickListener {
+                openCreateDialog()
             }
-        ).open()
+        }
+
+        logoutButton.addClickListener {
+            val ui = UI.getCurrent()
+            authenticationContext.logout()
+            ui?.page?.setLocation("/login")
+        }
+    }
+
+    private fun openCreateDialog() {
+        lateinit var dialog: UserFormDialog
+        dialog = UserFormDialog(
+            onSave = { form ->
+                addButton.isEnabled = false
+                SafeExecutor.run {
+                    try {
+                        userService.createUser(
+                            name = form.name,
+                            email = form.email,
+                            password = form.password ?: "",
+                            role = form.role
+                        )
+
+                        grid.dataProvider.refreshAll()
+                        Notification.show("User created")
+                        dialog.close()
+                    } finally {
+                        addButton.isEnabled = true
+                    }
+                }
+            }
+        )
+        dialog.open()
     }
 
     private fun openEditDialog(user: UserDto) {
-        UserFormDialog(
+        lateinit var dialog: UserFormDialog
+        dialog = UserFormDialog(
             user = user,
             onSave = { form ->
-                userService.updateUser(
-                    id = user.id!!,
-                    name = form.name,
-                    email = form.email,
-                    role = form.role
-                )
+                addButton.isEnabled = false
+                SafeExecutor.run {
+                    try {
+                        userService.updateUser(
+                            id = user.id!!,
+                            name = form.name,
+                            email = form.email,
+                            role = form.role
+                        )
 
-                grid.dataProvider.refreshAll()
-                Notification.show("User updated")
+                        grid.dataProvider.refreshAll()
+                        Notification.show("User updated")
+                        dialog.close()
+                    } finally {
+                        addButton.isEnabled = true
+                    }
+                }
             }
-
-        ).open()
+        )
+        dialog.open()
     }
 
     private fun openDeleteDialog(user: UserDto) {
-        ConfirmDialog(
-            "Delete User",
-            "Are you sure you want to delete ${user.name}?",
-            "Delete",
-            {
-                userService.deleteUser(user.id!!)
-                grid.dataProvider.refreshAll()
-                Notification.show("User deleted")
-            },
-            "Cancel"
-        ) {}.open()
+        val dialog = ConfirmDialog()
+        dialog.setHeader("Delete User")
+        dialog.setText("Are you sure you want to delete ${user.name}?")
+        dialog.setCancelable(true)
+        dialog.setConfirmText("Delete")
+        dialog.setCancelText("Cancel")
+        dialog.addConfirmListener {
+            addButton.isEnabled = false
+            SafeExecutor.run {
+                try {
+                    userService.deleteUser(user.id!!)
+                    grid.dataProvider.refreshAll()
+                    Notification.show("User deleted")
+                } finally {
+                    addButton.isEnabled = true
+                }
+            }
+        }
+        dialog.open()
     }
 
     private fun isAdmin(): Boolean {
-        return SecurityContextHolder.getContext()
-            .authentication
-            .authorities
-            .any { it.authority == "ROLE_ADMIN" }
+        return authenticationContext.getAuthenticatedUser(UserDetails::class.java).map { user ->
+                user.authorities.any {
+                    it.authority == "ROLE_ADMIN"
+                }
+            }
+            .orElse(false)
     }
 }
